@@ -56,25 +56,6 @@
     </style>
 </head>
 <body>
-    <!-- بخش کنترل دسترسی -->
-    <script>
-        // 🔐 تنظیمات امنیتی
-        const SECRET_TOKEN = "khazaei"; // 
-        
-        // 🔍 بررسی توکن در URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const userToken = urlParams.get('token');
-
-        if (userToken !== SECRET_TOKEN) {
-            document.body.innerHTML = `
-                <div style="text-align:center; padding:50px; font-family:Tahoma; color:red">
-                    <h2>⚠️ دسترسی غیرمجاز</h2>
-                    <p>برای دسترسی به این صفحه نیاز به توکن معتبر دارید</p>
-                    <p style="color: #666; margin-top:20px;">لطفا از لینک ارائه شده توسط مدیر سیستم استفاده کنید</p>
-                </div>
-            `;
-            throw new Error("Invalid access token"); // توقف اجرای اسکریپت
-        }
     </script>
     <div class="location-info">
         <h2>پیش‌بینی آب و هوای کشت و صنعت خزاعی رفیع </h2>
