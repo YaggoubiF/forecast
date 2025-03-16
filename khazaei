@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>پیش‌بینی آب و هوا</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .weather-box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        h3 { color: #2c3e50; }
+        p { margin: 5px 0; }
+        #map { 
+            height: 400px;
+            width: 100%;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #weather-result {
+            padding: 20px;
+            font-family: Tahoma;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        .weather-box {
+            flex: 1;
+            min-width: 250px;
+            max-width: 300px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .location-info {
+            text-align: center;
+            padding: 20px;
+            background: #f0f8ff;
+            margin: 20px;
+            border-radius: 8px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <!-- بخش کنترل دسترسی -->
+    <script>
+        // 🔐 تنظیمات امنیتی
+        const SECRET_TOKEN = "khazaei"; // 
+        
+        // 🔍 بررسی توکن در URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const userToken = urlParams.get('token');
+
+        if (userToken !== SECRET_TOKEN) {
+            document.body.innerHTML = `
+                <div style="text-align:center; padding:50px; font-family:Tahoma; color:red">
+                    <h2>⚠️ دسترسی غیرمجاز</h2>
+                    <p>برای دسترسی به این صفحه نیاز به توکن معتبر دارید</p>
+                    <p style="color: #666; margin-top:20px;">لطفا از لینک ارائه شده توسط مدیر سیستم استفاده کنید</p>
+                </div>
+            `;
+            throw new Error("Invalid access token"); // توقف اجرای اسکریپت
+        }
+    </script>
+    <div class="location-info">
+        <h2>پیش‌بینی آب و هوای کشت و صنعت خزاعی رفیع </h2>
+        <p>عرض جغرافیایی: 35.61</p>
+        <p>طول جغرافیایی: 59.48</p>
+    </div>
+    <!-- اضافه کردن نقشه -->
+    <div id="map"></div>
+    <div class="chart-container">
+        <canvas id="tempChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="precipChart"></canvas>
+    </div>
+    <div id="weather-result"></div>
+
+    <script>
+        let tempChart = null;
+        let precipChart = null;
+
+        // تنظیمات نقشه
+        const lat = 35.61;
+        const lng = 59.48;
+        const map = L.map('map').setView([lat, lng], 12); // زوم 12 برای نمایش بهتر منطقه
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        
+        // اضافه کردن مارکر به نقشه
+        const marker = L.marker([lat, lng])
+            .addTo(map)
+            .bindPopup('مختصات: ' + lat + ', ' + lng)
+            .openPopup();
+
+        // تابع ایجاد نمودار دما
+        function createTempChart(dates, maxTemps, minTemps) {
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            if (tempChart) {
+                tempChart.destroy();
+            }
+            tempChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'حداکثر دما',
+                            data: maxTemps,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'حداقل دما',
+                            data: minTemps,
+                            borderColor: 'rgb(54, 162, 235)',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'نمودار تغییرات دما',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'دما (°C)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // تابع ایجاد نمودار بارش و باد
+        function createPrecipChart(dates, precips, winds) {
+            const ctx = document.getElementById('precipChart').getContext('2d');
+            if (precipChart) {
+                precipChart.destroy();
+            }
+            precipChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'بارش',
+                            data: precips,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'سرعت باد',
+                            data: winds,
+                            type: 'line',
+                            borderColor: 'rgb(75, 192, 192)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'نمودار بارش و سرعت باد',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'بارش (mm)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'سرعت باد (km/h)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // دریافت اطلاعات آب و هوا
+        async function getWeatherData() {
+            document.getElementById('weather-result').innerHTML = '<div class="weather-box">در حال دریافت اطلاعات...</div>';
+            
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,shortwave_radiation_sum,et0_fao_evapotranspiration&timezone=auto&past_days=1`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`خطای HTTP: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.daily) {
+                    throw new Error('داده‌های دریافتی نامعتبر هستند');
+                }
+
+                // تبدیل تاریخ‌ها به فرمت فارسی
+                const persianDates = data.daily.time.map(date => 
+                    new Date(date).toLocaleDateString('fa-IR')
+                );
+
+                // ایجاد نمودارها
+                createTempChart(
+                    persianDates,
+                    data.daily.temperature_2m_max,
+                    data.daily.temperature_2m_min
+                );
+                
+                createPrecipChart(
+                    persianDates,
+                    data.daily.precipitation_sum,
+                    data.daily.wind_speed_10m_max
+                );
+
+                // نمایش اطلاعات در کارت‌ها
+                const weatherHTML = data.daily.time.map((date, i) => {
+                    const persianDate = new Date(date).toLocaleDateString('fa-IR');
+                    
+                    return `
+                        <div class="weather-box">
+                            <h3>📅 ${persianDate}</h3>
+                            <p>🔥 حداکثر دما: ${data.daily.temperature_2m_max[i]?.toFixed(1) ?? '---'}°C</p>
+                            <p>❄️ حداقل دما: ${data.daily.temperature_2m_min[i]?.toFixed(1) ?? '---'}°C</p>
+                            <p>🌧️ مجموع بارش: ${data.daily.precipitation_sum[i]?.toFixed(1) ?? '---'} mm</p>
+                            <p>🌪️ حداکثر سرعت باد: ${data.daily.wind_speed_10m_max[i]?.toFixed(1) ?? '---'} km/h</p>
+                            <p>☀️ تابش خورشید: ${data.daily.shortwave_radiation_sum[i]?.toFixed(1) ?? '---'} MJ/m²</p>
+                            <p>💧 تبخیر و تعرق: ${data.daily.et0_fao_evapotranspiration[i]?.toFixed(1) ?? '---'} mm</p>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('weather-result').innerHTML = weatherHTML;
+                    
+            } catch (error) {
+                console.error('خطا:', error);
+                document.getElementById('weather-result').innerHTML = `
+                    <div class="error-box">
+                        <h3>خطا در دریافت اطلاعات</h3>
+                        <p>${error.message}</p>
+                        <p>لطفاً دوباره تلاش کنید.</p>
+                    </div>`;
+            }
+        }
+
+        // اجرای تابع هنگام بارگذاری صفحه
+        window.onload = getWeatherData;
+    </script>
+</body>
+</html>
