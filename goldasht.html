@@ -61,6 +61,12 @@
         const map = L.map('map').setView([lat, lng], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+    // اضافه کردن مارکر به نقشه (بخش جدید اضافه شده)
+    const marker = L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup('مزرعه گلدشت<br>مختصات: ' + lat + ', ' + lng)
+        .openPopup();
+
         // تابع ایجاد نمودار دما با داده‌لیبل
         function createTempChart(dates, maxTemps, minTemps) {
             const ctx = document.getElementById('tempChart').getContext('2d');
