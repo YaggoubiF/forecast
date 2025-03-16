@@ -36,22 +36,6 @@
     </style>
 </head>
 <body>
-    <script>
-        const SECRET_TOKEN = "goldasht";
-        const urlParams = new URLSearchParams(window.location.search);
-        const userToken = urlParams.get('token');
-
-        if (userToken !== SECRET_TOKEN) {
-            document.body.innerHTML = `
-                <div style="text-align:center; padding:50px; font-family:Tahoma; color:red">
-                    <h2>⚠️ دسترسی غیرمجاز</h2>
-                    <p>برای دسترسی به این صفحه نیاز به توکن معتبر دارید</p>
-                </div>
-            `;
-            throw new Error("Invalid access token");
-        }
-    </script>
-
     <div class="location-info">
         <h2>پیش‌بینی آب و هوای مزرعه گلدشت </h2>
         <p>عرض جغرافیایی: 35.594</p>
